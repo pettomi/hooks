@@ -13,6 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Properties;
+import java.util.Scanner;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
@@ -36,7 +37,10 @@ public class Script {
 	String txn;
 	PrintWriter	out;
 	File log;
+	File lock;
 	String separator;
+	File working_directory_file;
+	String daemon_port;
 
 	public Script(String[] args) throws IOException {
 		
@@ -47,13 +51,14 @@ public class Script {
 		workspace_gold = temp.toAbsolutePath().toString() + separator + "workspace_gold" + separator;
 		workspace_front = temp.toAbsolutePath().toString() + separator+"workspace_front" + separator;
 		working_directory= System.getProperty("user.dir")+separator;
+		working_directory=new File(working_directory).getParentFile().toString();
 		current_front_repos = args[0];
-		String[] split=current_front_repos.split(separator); //             \\\\ ez volt itt 
+		String[] split=current_front_repos.split(separator+separator); //             \\\\ ez volt itt 
 		current_repo_name=split[split.length-1];
 		System.out.println(current_repo_name);
 		txn=args[1];
 		Properties prop = new Properties();
-		InputStream input = new FileInputStream(working_directory + "config.properties");
+		InputStream input = new FileInputStream(working_directory + "config"+ separator +"config.properties");
 
 		// load a properties file
 		prop.load(input);
@@ -65,10 +70,11 @@ public class Script {
 		current_front_repos_url = FilenameUtils.separatorsToSystem(prop.getProperty("url") + current_front_repos);
 		svn_path_os = FilenameUtils.separatorsToSystem(prop.getProperty("svn_path_os"));
 		gold_repo_name = FilenameUtils.separatorsToSystem(prop.getProperty("gold_repo_name"));
+		daemon_port = FilenameUtils.separatorsToSystem(prop.getProperty("daemon_port"));
 
 		input.close();
 		
-		log = new File("G:\\"+ current_repo_name+ "_front_log.txt");
+		log = new File(working_directory + "log"+ separator + current_repo_name+ "_front_log.txt");
 		if(!log.exists())
 			log.createNewFile();
 		out = new PrintWriter(log);	
@@ -77,7 +83,7 @@ public class Script {
 	public void Run() throws IOException, InterruptedException {
 
 		// log
-			 
+		try{	 
 		 out.println(current_front_repos);
 		 out.println(txn);
 		 
@@ -160,9 +166,20 @@ public class Script {
 					String lock = "cd " + workspace_gold + gold_repo_name + " && svn lock " + file;
 //					System.out.println(cmd(lock));
 
+					if(FilenameUtils.getExtension(change).equals("wtspec4m")){
+						String lens = "cd " + working_directory +"invoker"+ separator + " && java -jar invoker.jar " + daemon_port + separator
+								+ "thrift-local" + separator + "lens-daemon -gold " + gold_repos_url + " -front "+ current_front_repos_url
+								+ " -macl X -eiq Y -username "+ front_user + " -type -performPutback -configuration" + working_directory
+								+ " -data " +working_directory + " -obfuscatorSalt  salt_" + current_repo_name +  " -obfuscatorSeed seed_"
+								+ current_repo_name + " -obfuscatorPrefix mondo " + gold_repos_url + ".mondo";
+						out.println("8.1 lencséket hajtottuk végre:");
+						out.println(cmd(lens));
+					}
+					else{
 					String copy = "svnlook cat -t " + txn + " " + current_front_repos + " " + file + " > "
 							+ workspace_front + file;
 					out.println(cmd(copy));
+					}
 				}
 
 			}
@@ -197,12 +214,18 @@ public class Script {
 		FileUtils.deleteQuietly(temp.toFile());
 		out.flush();
 		out.close();
+		}catch(Exception e){
+			e.printStackTrace();
+			out.close();
+			FileUtils.deleteDirectory(temp.toFile());
+			lock.delete();
+		}
 	}
 
 	
 
 	private void checklock() throws IOException {
-		File lock=new File( "G:\\lock.properties");
+		lock=new File( working_directory+ "lock"+ separator+"lock.properties");
 		if(lock.exists()){
 			out.println("Található lock fájl. Pre-commit kihagyása, mert Goldról jött a commit");
 			out.flush();
@@ -235,7 +258,7 @@ public class Script {
 	public ArrayList<String> cmd(String command) throws IOException {
 		ArrayList<String> result = new ArrayList<String>();
 		try {
-			ProcessBuilder builder = new ProcessBuilder("cmd.exe");
+			ProcessBuilder builder = new ProcessBuilder("bash");
 			builder.redirectErrorStream(true);
 			Process p = builder.start();
 			BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -248,7 +271,7 @@ public class Script {
 
 		} finally {
 		}
-
+		System.out.println(result);
 		return result;
 	}
 }
