@@ -2,7 +2,11 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
-	<classpathentry kind="lib" path="C:/Users/Tomi/workspace/pre-commit_hook/commons-io-2.5.jar"/>
-	<classpathentry kind="lib" path="C:/Users/Tomi/workspace/pre-commit_hook/commons-io-2.5-javadoc.jar"/>
+	<classpathentry kind="lib" path="C:/Users/Tomi/workspace/hooks_git/hooks/hooks/pre-commit_hook/commons-io-2.5.jar">
+		<attributes>
+			<attribute name="javadoc_location" value="jar:platform:/resource/pre-commit_hook/commons-io-2.5-javadoc.jar!/"/>
+		</attributes>
+	</classpathentry>
+	<classpathentry kind="lib" path="C:/Users/Tomi/workspace/hooks_git/hooks/hooks/pre-commit_hook/commons-io-2.5-javadoc.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

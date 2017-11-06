@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 
 public class Script {
 
@@ -35,16 +36,19 @@ public class Script {
 	String txn;
 	PrintWriter	out;
 	File log;
+	String separator;
 
 	public Script(String[] args) throws IOException {
 		
 		/* EZ ITT A WORKSPACE!!! */
+		separator=String.valueOf(File.separatorChar);
+		System.out.println(separator);
 		temp = Files.createTempDirectory("mondo");
-		workspace_gold = temp.toAbsolutePath().toString() + "\\workspace_gold\\";
-		workspace_front = temp.toAbsolutePath().toString() + "\\workspace_front\\";
-		working_directory= System.getProperty("user.dir")+"/";
+		workspace_gold = temp.toAbsolutePath().toString() + separator + "workspace_gold" + separator;
+		workspace_front = temp.toAbsolutePath().toString() + separator+"workspace_front" + separator;
+		working_directory= System.getProperty("user.dir")+separator;
 		current_front_repos = args[0];
-		String[] split=current_front_repos.split("\\\\");
+		String[] split=current_front_repos.split(separator); //             \\\\ ez volt itt 
 		current_repo_name=split[split.length-1];
 		System.out.println(current_repo_name);
 		txn=args[1];
@@ -55,12 +59,12 @@ public class Script {
 		prop.load(input);
 
 		// get the property value and print it out
-		gold_repos_url = prop.getProperty("gold_repos_url");
-		admin_user = prop.getProperty("admin_user");
-		admin_pwd = prop.getProperty("admin_pwd");
-		current_front_repos_url = prop.getProperty("url") + current_front_repos;
-		svn_path_os = prop.getProperty("svn_path_os");
-		gold_repo_name = prop.getProperty("gold_repo_name");
+		gold_repos_url = FilenameUtils.separatorsToSystem(prop.getProperty("gold_repos_url"));
+		admin_user =FilenameUtils.separatorsToSystem(prop.getProperty("admin_user"));
+		admin_pwd = FilenameUtils.separatorsToSystem(prop.getProperty("admin_pwd"));
+		current_front_repos_url = FilenameUtils.separatorsToSystem(prop.getProperty("url") + current_front_repos);
+		svn_path_os = FilenameUtils.separatorsToSystem(prop.getProperty("svn_path_os"));
+		gold_repo_name = FilenameUtils.separatorsToSystem(prop.getProperty("gold_repo_name"));
 
 		input.close();
 		
