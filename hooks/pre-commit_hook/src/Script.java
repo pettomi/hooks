@@ -41,7 +41,10 @@ public class Script {
 	String separator;
 	File working_directory_file;
 	String daemon_port;
-
+	String lock_queries_path;
+	String root;
+	String access_control_rules_path;
+	
 	public Script(String[] args) throws IOException {
 		
 		/* EZ ITT A WORKSPACE!!! */
@@ -57,6 +60,7 @@ public class Script {
 		current_repo_name=split[split.length-1];
 		System.out.println(current_repo_name);
 		txn=args[1];
+		root=args[2];
 		Properties prop = new Properties();
 		InputStream input = new FileInputStream(working_directory + "config"+ separator +"config.properties");
 
@@ -71,6 +75,8 @@ public class Script {
 		svn_path_os = FilenameUtils.separatorsToSystem(prop.getProperty("svn_path_os"));
 		gold_repo_name = FilenameUtils.separatorsToSystem(prop.getProperty("gold_repo_name"));
 		daemon_port = FilenameUtils.separatorsToSystem(prop.getProperty("daemon_port"));
+		access_control_rules_path = FilenameUtils.separatorsToSystem(prop.getProperty("PATH_TO_ACCESS_CONTROL_RULES_FROM_REPOSITORY_ROOT"));
+		lock_queries_path = FilenameUtils.separatorsToSystem(prop.getProperty("PATH_TO_ACCESS_CONTROL_AND_LOCK_QUERIES_FROM_REPOSITORY_ROOT"));
 
 		input.close();
 		
@@ -157,7 +163,7 @@ public class Script {
 
 			if (change.startsWith("A") || change.startsWith("U") || change.startsWith("UU")) {
 
-				if (file.endsWith("/")) {
+				if (file.endsWith(separator)) {
 					new_file.mkdirs();
 				} else {
 					new_file.getParentFile().mkdirs();
@@ -172,8 +178,14 @@ public class Script {
 								+ " -macl X -eiq Y -username "+ front_user + " -type -performPutback -configuration" + working_directory
 								+ " -data " +working_directory + " -obfuscatorSalt  salt_" + current_repo_name +  " -obfuscatorSeed seed_"
 								+ current_repo_name + " -obfuscatorPrefix mondo " + gold_repos_url + ".mondo";
+						
+						String lens2 = "cd " + working_directory +"invoker"+ separator + " && java -jar invoker.jar " + front_user + 
+								" " + file.split(FilenameUtils.getExtension(file))[0] + " " + file + " -performGet "+ working_directory
+								+  " -obfuscatorSalt  salt_" + gold_repo_name+" -obfuscatorSeed seed_"	+ gold_repos_url + " -obfuscatorPrefix mondo "
+								+ workspace_gold + separator + access_control_rules_path + " " + workspace_gold + separator + lock_queries_path
+								+ " " + root;
 						out.println("8.1 lencséket hajtottuk végre:");
-						out.println(cmd(lens));
+						out.println(cmd(lens2));
 					}
 					else{
 					String copy = "svnlook cat -t " + txn + " " + current_front_repos + " " + file + " > "
@@ -258,7 +270,7 @@ public class Script {
 	public ArrayList<String> cmd(String command) throws IOException {
 		ArrayList<String> result = new ArrayList<String>();
 		try {
-			ProcessBuilder builder = new ProcessBuilder("bash");
+			ProcessBuilder builder = new ProcessBuilder("bin/sh");
 			builder.redirectErrorStream(true);
 			Process p = builder.start();
 			BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));

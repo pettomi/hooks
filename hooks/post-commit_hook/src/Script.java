@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FilenameUtils;
 
 public class Script {
 
@@ -30,31 +31,41 @@ public class Script {
 	File log;
 	PrintWriter out;
 	File lock;
+	String separator;
+	String daemon_port;
+	String access_control_rules_path;
+	String lock_queries_path;
+	String root;
 
 	public Script(String[] args) throws IOException {
 		
+		separator=String.valueOf(File.separatorChar);
 		gold_repo=args[0];
 		txn= args[1].split("-")[0];
-		working_directory=System.getProperty("user.dir") + "/";
+		root= args[2];
+		working_directory= System.getProperty("user.dir")+separator;
+		working_directory=new File(working_directory).getParentFile().toString();
 		repos=new ArrayList<String>();
 		
 		// properties beolvasása
 		Properties prop = new Properties();
-		InputStream input = new FileInputStream("config.properties");
+		InputStream input = new FileInputStream(working_directory+"config" + separator + "config.properties");
 
 		// load a properties file
 		prop.load(input);
 
 		// get the property value
-		url = prop.getProperty("url");
+		url = FilenameUtils.separatorsToSystem(prop.getProperty("url"));
 		admin_user = prop.getProperty("admin_user");
 		admin_pwd = prop.getProperty("admin_pwd");
-		svn_path_os = prop.getProperty("svn_path_os");
-		gold_repo_name = prop.getProperty("gold_repo_name");
+		svn_path_os = FilenameUtils.separatorsToSystem(prop.getProperty("svn_path_os"));
+		gold_repo_name = FilenameUtils.separatorsToSystem(prop.getProperty("gold_repo_name"));
+		access_control_rules_path = FilenameUtils.separatorsToSystem(prop.getProperty("PATH_TO_ACCESS_CONTROL_RULES_FROM_REPOSITORY_ROOT"));
+		lock_queries_path = FilenameUtils.separatorsToSystem(prop.getProperty("PATH_TO_ACCESS_CONTROL_AND_LOCK_QUERIES_FROM_REPOSITORY_ROOT"));
 		gold_repos_url = url + gold_repo_name;
 		
 		// log
-		log = new File("G:\\"+ gold_repo_name+ "_front_log.txt");
+		log = new File(working_directory + "log"+ separator + gold_repo_name+ "_front_log.txt");
 		if(!log.exists())
 			log.createNewFile();
 		out = new PrintWriter(log);	
@@ -63,15 +74,15 @@ public class Script {
 
 	public void Run() throws IOException, InterruptedException {
 
-		
+		try{
 		out.println(gold_repo);
 		out.println(txn);
 
 		
 		out.println("1. Workspace gold és front directory létrehozása");
 		Path temp = Files.createTempDirectory("mondo");
-		String workspace_gold = temp.toAbsolutePath().toString() + "/workspace_gold/";
-		String workspace_front = temp.toAbsolutePath().toString() + "/workspace_front/";
+		String workspace_gold = temp.toAbsolutePath().toString() + separator+ "workspace_gold" + separator;
+		String workspace_front = temp.toAbsolutePath().toString() +separator+ "workspace_front"+ separator;
 
 		File workspace_gold_directory = new File(workspace_gold);
 		workspace_gold_directory.mkdir();
@@ -102,7 +113,7 @@ public class Script {
 
 		
 		out.println("5. Kiolvassuk a config2.properties file-ból a cluster-hez tartozó repókat");
-		BufferedReader r = new BufferedReader(new FileReader(working_directory + "config2.properties"));
+		BufferedReader r = new BufferedReader(new FileReader(working_directory+"config" +separator+ "config2.properties"));
 		String line = r.readLine();
 		while (line != null) {
 			repos.add(line);
@@ -125,14 +136,34 @@ public class Script {
 
 			if (change.startsWith("A") || change.startsWith("U") || change.startsWith("UU")) {
 
-				if (file.endsWith("/")) {
+				if (file.endsWith(separator)) {
 					new_file.mkdirs();
 				} else {
 					new_file.getParentFile().mkdirs();
 					new_file.createNewFile();
+					if(FilenameUtils.getExtension(change).equals("wtspec4m")){
+						String lens = "cd " + working_directory +"invoker"+ separator + " && java -jar invoker.jar " + daemon_port + separator
+								+ "thrift-local" + separator + "lens-daemon -gold " + gold_repos_url + " -front "+ gold_repos_url
+								+ " -macl X -eiq Y -username "+ front_user + " -type -performPutback -configuration" + working_directory
+								+ " -data " +working_directory + " -obfuscatorSalt  salt_" + gold_repo_name +  " -obfuscatorSeed seed_"
+								+ gold_repo + " -obfuscatorPrefix mondo " + gold_repos_url + ".mondo";
+						
+						String lens2 = "cd " + working_directory +"invoker"+ separator + " && java -jar invoker.jar " + front_user + 
+								" " + file.split(FilenameUtils.getExtension(file))[0] + " " + file + " -performGet "+ working_directory
+								+  " -obfuscatorSalt  salt_" + gold_repo_name+" -obfuscatorSeed seed_"	+ gold_repo + " -obfuscatorPrefix mondo "
+								+ workspace_gold + separator + access_control_rules_path + " " + workspace_gold + separator + lock_queries_path
+								+ " " + root;
+						
+						
+						out.println("8.1 lencséket hajtottuk végre:");
+						out.println(cmd(lens2));
+					
+					}
+					else{
 					String copy = "svnlook cat -r " + txn + " " + gold_repo + " " + file + " > " + workspace_gold
 							+ file;
 					cmd(copy);
+					}
 				}
 
 			}
@@ -162,7 +193,7 @@ public class Script {
 				File new_file = null;
 
 				if (change.startsWith("D")) {
-					new_file = new File(workspace_front + frontrepo + "/" + file);
+					new_file = new File(workspace_front + frontrepo + separator + file);
 					if (new_file.exists()) {
 						new_file.delete();
 						cmd("cd " + workspace_front + frontrepo + " && " + "svn delete " + file);
@@ -196,6 +227,11 @@ public class Script {
 		lock.deleteOnExit();
 		out.flush();
 		out.close();
+		}catch(Exception e){
+			e.printStackTrace();
+			lock.deleteOnExit();
+			out.close();
+		}
 	}
 	
 	public static ArrayList<String> findAll(BufferedReader r) throws IOException {
@@ -214,7 +250,7 @@ public class Script {
 	public  ArrayList<String> cmd(String command) throws IOException{
 		ArrayList<String> result= new ArrayList<String>();
 		try{
-		ProcessBuilder builder = new ProcessBuilder("cmd.exe");
+		ProcessBuilder builder = new ProcessBuilder("bin/sh");
 		builder.redirectErrorStream(true);
 		Process p = builder.start();
 		BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -250,7 +286,7 @@ public class Script {
 		}
 	}
 	private void checklock() throws IOException {
-		lock=new File( "G:\\lock.properties");
+		lock=new File( working_directory+"lock"+ separator +"lock.properties");
 		if(lock.exists()){
 			Properties prop = new Properties();
 			InputStream input = new FileInputStream(lock);
@@ -259,7 +295,7 @@ public class Script {
 			out.println("5.1 Létezik a lock file. A commitoló repó:" + commiter_repo);
 			for (String repo : repos) {	
 				System.out.println(repo);
-				if(commiter_repo.contains(repo.split("/")[0])){;
+				if(commiter_repo.contains(repo.split(separator)[0])){;
 					repos.remove(repo);
 				}
 			}
