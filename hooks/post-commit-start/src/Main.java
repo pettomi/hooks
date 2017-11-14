@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 
 public class Main {
 
@@ -18,21 +19,23 @@ public class Main {
 		cmd("java -jar post-commit.jar "+ s1 + " " + s2 + " " + s3);
 	}
 	
-	public static void cmd(String command) throws IOException {
+	public static ArrayList<String> cmd(String command) throws IOException {
+		ArrayList<String> result = new ArrayList<String>();
+		String s;
 		try {
-			ProcessBuilder builder = new ProcessBuilder("bin/sh");
-			builder.redirectErrorStream(true);
-			Process p = builder.start();
-			BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
-			r.readLine();
-			BufferedWriter w = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));
-			w.write(command);
-			w.newLine();
-			w.flush();
+			Process p = Runtime.getRuntime().exec(command);
+		    BufferedReader br = new BufferedReader(
+		        new InputStreamReader(p.getInputStream()));
+		    while ((s = br.readLine()) != null)
+		        result.add(s);
+		    p.waitFor();
+		    System.out.println ("exit: " + p.exitValue());
+		    p.destroy();
 		} catch (Exception e) {
 
 		} finally {
 		}
+		return result;
 	}
 
 }

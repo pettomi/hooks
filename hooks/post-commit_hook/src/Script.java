@@ -37,6 +37,9 @@ public class Script {
 	String lock_queries_path;
 	String root;
 	String lock_rules;
+	File f1;
+	File f2;
+	String working_directory2;
 
 	public Script(String[] args) throws IOException {
 
@@ -44,8 +47,9 @@ public class Script {
 		gold_repo = args[0];
 		txn = args[1].split("-")[0];
 		root = args[2];
-		working_directory = System.getProperty("user.dir") + separator;
-		working_directory = new File(working_directory).getParentFile().toString() + separator;
+		working_directory2 = Main.class.getProtectionDomain().getCodeSource().getLocation().toString().substring(5);
+		System.out.println(working_directory);
+		working_directory = new File(working_directory2).getParentFile().getParentFile().toString() + separator;
 		repos = new ArrayList<String>();
 
 		// properties beolvasása
@@ -126,9 +130,8 @@ public class Script {
 			out.println(
 					"6. Iterálunk végig a változtatásokon. Berakjuk a Gold working directoryba a front user által létrehozott változtatásokat.");
 
-			File f1 = new File(workspace_gold + access_control_rules_path);
-			File f2 = new File(workspace_gold + lock_queries_path);
-			File f3 = new File(workspace_gold + lock_rules);
+			f1 = new File(workspace_gold + access_control_rules_path);
+			f2 = new File(workspace_gold + lock_queries_path);
 
 			for (String change : changes) {
 
@@ -150,6 +153,13 @@ public class Script {
 						String copy = "svnlook cat -r " + txn + " " + gold_repo + " " + file + " > " + workspace_gold
 								+ file;
 						cmd(copy);
+						
+						String svn_cat1= "svnlook cat -r " + txn +  " " + gold_repo + " " + access_control_rules_path + "> " +
+						workspace_gold + access_control_rules_path;
+						String svn_cat2= "svnlook cat -r " + txn +  " " + gold_repo + " " + lock_queries_path + "> " +
+								workspace_gold + lock_queries_path;
+						out.println(cmd(svn_cat1));
+						out.println(cmd(svn_cat2));
 
 						if (FilenameUtils.getExtension(change).equals("wtspec4m") && f1.exists() && f2.exists()) {
 							String lens;
@@ -234,6 +244,7 @@ public class Script {
 		} catch (Exception e) {
 			e.printStackTrace();
 			lock.deleteOnExit();
+			out.println("upsz valami hiba történt");
 			out.flush();
 			out.close();
 		}
@@ -252,7 +263,7 @@ public class Script {
 		return result;
 	}
 
-	public ArrayList<String> cmd(String command) throws IOException {
+	public ArrayList<String> cmd2(String command) throws IOException {
 		ArrayList<String> result = new ArrayList<String>();
 		try {
 			ProcessBuilder builder = new ProcessBuilder("bin/sh");
@@ -269,6 +280,25 @@ public class Script {
 		} finally {
 		}
 
+		return result;
+	}
+	
+	public static ArrayList<String> cmd(String command) throws IOException {
+		ArrayList<String> result = new ArrayList<String>();
+		String s;
+		try {
+			Process p = Runtime.getRuntime().exec(command);
+		    BufferedReader br = new BufferedReader(
+		        new InputStreamReader(p.getInputStream()));
+		    while ((s = br.readLine()) != null)
+		        result.add(s);
+		    p.waitFor();
+		    System.out.println ("exit: " + p.exitValue());
+		    p.destroy();
+		} catch (Exception e) {
+
+		} finally {
+		}
 		return result;
 	}
 

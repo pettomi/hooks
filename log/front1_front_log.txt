@@ -1,0 +1,7 @@
+C:\Repositories\front1
+30
+C:\Users\Tomi\workspace\hooks_git\hooks\
+1.  Making workspace gold directory
+2. Making workspace front directory
+3. Megnézzük ki commitolt: 
+upsz valami hiba történt

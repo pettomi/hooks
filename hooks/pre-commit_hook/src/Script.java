@@ -45,6 +45,8 @@ public class Script {
 	String root;
 	String access_control_rules_path;
 	String lock_rules;
+	File f1,f2,f3;
+	String working_directory2;
 
 	public Script(String[] args) throws IOException {
 
@@ -54,10 +56,12 @@ public class Script {
 		temp = Files.createTempDirectory("mondo");
 		workspace_gold = temp.toAbsolutePath().toString() + separator + "workspace_gold" + separator;
 		workspace_front = temp.toAbsolutePath().toString() + separator + "workspace_front" + separator;
-		working_directory = System.getProperty("user.dir") + separator;
-		working_directory = new File(working_directory).getParentFile().toString() + separator;
+		//working_directory = System.getProperty("user.dir") + separator;
+		working_directory2 = Main.class.getProtectionDomain().getCodeSource().getLocation().toString().substring(5);
+		System.out.println(working_directory);
+		working_directory = new File(working_directory2).getParentFile().getParentFile().toString() + separator;
 		current_front_repos = args[0];
-		String[] split = current_front_repos.split(separator + separator); // \\\\
+		String[] split = current_front_repos.split(separator); // \\\\
 																			// ez
 																			// volt
 																			// itt
@@ -88,10 +92,14 @@ public class Script {
 		input.close();
 
 		log = new File(working_directory + "log" + separator + current_repo_name + "_front_log.txt");
-		if (!log.exists())
+		if (!log.exists()){
+			//log.getParentFile().mkdir();
 			log.createNewFile();
+		}
 		out = new PrintWriter(log);
 
+		out.println("current working directory: "+working_directory);
+		out.println("current front repo name: "+current_repo_name);
 		System.out.println(working_directory);
 	}
 
@@ -154,9 +162,9 @@ public class Script {
 				}
 			}
 
-			File f1 = new File(workspace_gold + access_control_rules_path);
-			File f2 = new File(workspace_gold + lock_queries_path);
-			File f3 = new File(workspace_gold + lock_rules);
+			f1 = new File(workspace_gold + access_control_rules_path);
+			f2 = new File(workspace_gold + lock_queries_path);
+			f3 = new File(workspace_gold + lock_rules);
 
 			out.println("8. Nem találtunk lockot. Iterálunk végig a változtatásokon");
 			for (String change : changes) {
@@ -164,6 +172,7 @@ public class Script {
 					break;
 				String file = change.substring(4);
 				System.out.println(file);
+				out.println("Ezen fájlnál tartok: " + file);
 				File new_file = new File(workspace_front + file);
 				System.out.println(workspace_front + file);
 
@@ -180,6 +189,7 @@ public class Script {
 
 						String copy = "svnlook cat -t " + txn + " " + current_front_repos + " " + file + " > "
 								+ workspace_front + file;
+						out.println(copy);
 						out.println(cmd(copy));
 
 						if (FilenameUtils.getExtension(change).equals("wtspec4m") && f1.exists() && f2.exists()) {
@@ -240,6 +250,8 @@ public class Script {
 			out.close();
 		} catch (Exception e) {
 			e.printStackTrace();
+			out.println("upsz valami hiba történt:");
+			out.println(e.getMessage());
 			out.flush();
 			out.close();
 			FileUtils.deleteDirectory(temp.toFile());
@@ -270,30 +282,56 @@ public class Script {
 		for (int i = 0; i < 4; i++) {
 			line = r.readLine();
 		}
-		while (!line.equals("")) {
+	//	while (!line.equals("")) {
 			line = r.readLine();
 			result.add(line);
-		}
+	//	}
 		return result;
 	}
 
-	public ArrayList<String> cmd(String command) throws IOException {
+	public ArrayList<String> cmd2(String command) throws IOException {
 		ArrayList<String> result = new ArrayList<String>();
 		try {
-			ProcessBuilder builder = new ProcessBuilder("bin/sh");
+			ProcessBuilder builder = new ProcessBuilder(command);
 			builder.redirectErrorStream(true);
 			Process p = builder.start();
 			BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
-			BufferedWriter w = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));
-			w.write(command);
-			w.newLine();
-			w.flush();
+//			BufferedWriter w = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));
+//			w.write(command);
+//			w.newLine();
+//			w.flush();
 			result = findAll(r);
 		} catch (Exception e) {
 
 		} finally {
 		}
 		System.out.println(result);
+		return result;
+	}
+	
+	public ArrayList<String> cmd(String command) throws IOException {
+		ArrayList<String> result = new ArrayList<String>();
+		String s;
+		try {
+			Process p = Runtime.getRuntime().exec(command);
+			
+			BufferedReader error = new BufferedReader(
+			        new InputStreamReader(p.getErrorStream()));
+			while ((s = error.readLine()) != null)
+				out.println(s);
+		        
+		    BufferedReader br = new BufferedReader(
+		        new InputStreamReader(p.getInputStream()));
+			
+		    while ((s = br.readLine()) != null)
+		        result.add(s);
+		    p.waitFor();
+		    System.out.println ("exit: " + p.exitValue());
+		    p.destroy();
+		} catch (Exception e) {
+
+		} finally {
+		}
 		return result;
 	}
 }
