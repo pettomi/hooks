@@ -9,9 +9,11 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
 
@@ -129,20 +131,19 @@ public class Script {
 			out.println("4. Lehúzzuk a Gold repot");
 			String svncheckout = "svn checkout " + gold_repos_url + " -q  --username " + admin_user + " --password "
 					+ admin_pwd + " " + "--quiet --non-interactive";
-			System.out.println(cmd("cd " + workspace_gold + " && " + svncheckout));
-			System.out.println(svncheckout);
+			out.println(svncheckout);
+			out.println(cmd(svncheckout, workspace_gold));
+			
 
 			out.println("5. Lekérjük a front felhasználó változtatásait. Változtatások: ");
 			String get_changes = "svnlook changed -t " + txn + " " + current_front_repos;
 			ArrayList<String> changes = cmd(get_changes);
-			System.out.println(changes.toString());
-			System.out.println(get_changes);
+			out.println(get_changes);
 			out.println(changes.toString());
 
 			out.println("6. Lekérjük a commit üzenetet. Üzenet: ");
 			String get_commit_message = "svnlook log -t " + txn + " " + current_front_repos;
 			String commit_message = cmd(get_commit_message).get(0);
-			System.out.println(commit_message);
 			out.println(commit_message);
 
 			out.println("7 Lekérjük a lockokat.");
@@ -181,17 +182,16 @@ public class Script {
 					if (file.endsWith(separator)) {
 						new_file.mkdirs();
 					} else {
-						new_file.getParentFile().mkdirs();
-						new_file.createNewFile();
+//						new_file.getParentFile().mkdirs();
+//						new_file.createNewFile();
 
-						String lock = "cd " + workspace_gold + gold_repo_name + " && svn lock " + file;
+//						String lock = "cd " + workspace_gold + gold_repo_name + " && svn lock " + file;
 						// System.out.println(cmd(lock));
 
-						String copy = "svnlook cat -t " + txn + " " + current_front_repos + " " + file + " > "
-								+ workspace_front + file;
+						String copy = "svnlook cat -t " + txn +" "+ current_front_repos + " " + file  ;//+ " > "
+		//						+ workspace_front + file;
 						out.println(copy);
-						out.println(cmd(copy));
-
+						FileUtils.writeStringToFile(new_file, cmd(copy).get(0), Charset.defaultCharset() );
 						if (FilenameUtils.getExtension(change).equals("wtspec4m") && f1.exists() && f2.exists()) {
 							String lens;
 							if (f3.exists()) {
@@ -238,14 +238,16 @@ public class Script {
 
 			out.println("10. Addoljuk és commitoljuk a Gold working directory tartalmát");
 			String svn_add = "svn add --force * --auto-props --parents --depth infinity -q";
-			out.println(cmd("cd " + workspace_gold + gold_repo_name + " && " + svn_add));
+			out.println(svn_add+" hova: "+workspace_gold + gold_repo_name);
+			out.println(cmd(svn_add,workspace_gold + gold_repo_name));
 
 			String svn_commit = "svn commit -m \"" + commit_message + "\" --username " + admin_user + " --password "
 					+ admin_pwd + " --quiet --non-interactive";
-			out.println(cmd("cd " + workspace_gold + gold_repo_name + " && " + svn_commit));
+			out.println(svn_commit+" hova: "+ workspace_gold + gold_repo_name);
+			out.println(cmd(svn_commit,workspace_gold + gold_repo_name));
 
 			out.println("11. Töröljük a working directoryk tartalmát");
-			FileUtils.deleteQuietly(temp.toFile());
+			//FileUtils.deleteQuietly(temp.toFile());
 			out.flush();
 			out.close();
 		} catch (Exception e) {
@@ -326,10 +328,41 @@ public class Script {
 		    while ((s = br.readLine()) != null)
 		        result.add(s);
 		    p.waitFor();
-		    System.out.println ("exit: " + p.exitValue());
+		    out.println ("exit: " + p.exitValue());
 		    p.destroy();
 		} catch (Exception e) {
-
+			out.println(e.getMessage());
+		} finally {
+		}
+		return result;
+	}
+	
+	public ArrayList<String> cmd(String command, String where_to) throws IOException {
+		ArrayList<String> result = new ArrayList<String>();
+		String s;
+		try {
+			File where= new File(where_to);
+			Process p = Runtime.getRuntime().exec(command,null, where);
+//			ProcessBuilder pb = new ProcessBuilder(command);
+//			if(where.exists())
+//				out.println("létezik");
+//			pb.directory(where);
+//			Process p= pb.start();
+			BufferedReader error = new BufferedReader(
+			        new InputStreamReader(p.getErrorStream()));
+			while ((s = error.readLine()) != null)
+				out.println(s);
+		        
+		    BufferedReader br = new BufferedReader(
+		        new InputStreamReader(p.getInputStream()));
+			
+		    while ((s = br.readLine()) != null)
+		        result.add(s);
+		    p.waitFor();
+		    out.println ("exit: " + p.exitValue());
+		    p.destroy();
+		} catch (Exception e) {
+			out.println(e.getMessage());
 		} finally {
 		}
 		return result;
