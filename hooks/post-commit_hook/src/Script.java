@@ -41,6 +41,7 @@ public class Script {
 	File f1;
 	File f2;
 	String working_directory2;
+	String svn_url_path;
 
 	public Script(String[] args) throws IOException {
 
@@ -71,6 +72,7 @@ public class Script {
 		lock_queries_path = FilenameUtils
 				.separatorsToSystem(prop.getProperty("PATH_TO_ACCESS_CONTROL_AND_LOCK_QUERIES_FROM_REPOSITORY_ROOT"));
 		lock_rules = FilenameUtils.separatorsToSystem(prop.getProperty("PATH_TO_LOCK_RULES_FROM_REPOSITORY_ROOT"));
+		svn_url_path = FilenameUtils.separatorsToSystem(prop.getProperty("SVN_URL_PATH"));
 		gold_repos_url = url + gold_repo_name;
 
 		// log
@@ -150,31 +152,35 @@ public class Script {
 					} else {
 
 						String copy = "svnlook cat -r " + txn + " " + gold_repo + " " + file;
-						FileUtils.writeStringToFile(new_file, cmd(copy).get(0), Charset.defaultCharset() );
-						
-						String svn_cat1= "svnlook cat -r " + txn +  " " + gold_repo + " " + access_control_rules_path ;					
-						String svn_cat2= "svnlook cat -r " + txn +  " " + gold_repo + " " + lock_queries_path ;					
-						
-						FileUtils.writeStringToFile(new File(workspace_gold + access_control_rules_path), cmd(svn_cat1).get(0), Charset.defaultCharset() );
-						FileUtils.writeStringToFile(new File(workspace_gold + lock_queries_path), cmd(svn_cat2).get(0), Charset.defaultCharset() );
+						FileUtils.writeStringToFile(new_file, cmd(copy).get(0), Charset.defaultCharset());
+
+						String svn_cat1 = "svnlook cat -r " + txn + " " + gold_repo + " " + access_control_rules_path;
+						String svn_cat2 = "svnlook cat -r " + txn + " " + gold_repo + " " + lock_queries_path;
+
+						FileUtils.writeStringToFile(new File(workspace_gold + access_control_rules_path),
+								cmd(svn_cat1).get(0), Charset.defaultCharset());
+						FileUtils.writeStringToFile(new File(workspace_gold + lock_queries_path), cmd(svn_cat2).get(0),
+								Charset.defaultCharset());
 
 						if (FilenameUtils.getExtension(change).equals("wtspec4m") && f1.exists() && f2.exists()) {
 							String lens;
-							
-							String copy2 = "svnlook cat -r " + Integer.toString(Integer.parseInt(txn)-1) + " " + gold_repo + " " + file;
-							FileUtils.writeStringToFile(new File(workspace_front + file), cmd(copy2).get(0), Charset.defaultCharset() );
+
+							String copy2 = "svnlook cat -r " + Integer.toString(Integer.parseInt(txn) - 1) + " "
+									+ gold_repo + " " + file;
+							FileUtils.writeStringToFile(new File(workspace_front + file), cmd(copy2).get(0),
+									Charset.defaultCharset());
 
 							out.println(
 									"8.1 Rules és Queries léteznek és a fájltípus megegyezik a wtspec4m-mel. Végrehajtjuk a lencse transzformációkat");
-							lens = "java -jar invoker.jar "
-									+ front_user + " " + workspace_gold + file + " " + workspace_front + file
-									+ " -performPutBack " + working_directory + " salt_" + gold_repo_name + " seed_"
-									+ gold_repo_name + " mondo " + workspace_gold + access_control_rules_path + " "
-									+ workspace_gold + " " + lock_queries_path + " " + root;
+							lens = "java -jar invoker.jar " + front_user + " " + workspace_gold + file + " "
+									+ workspace_front + file + " -performPutBack " + working_directory + " salt_"
+									+ gold_repo_name + " seed_" + gold_repo_name + " mondo " + workspace_gold
+									+ access_control_rules_path + " " + workspace_gold + " " + lock_queries_path + " "
+									+ root;
 
 							out.println("8.2 lencséket hajtottuk végre:");
 							out.println(lens);
-							out.println(cmd(lens,working_directory + "invoker" + separator));
+							out.println(cmd(lens, working_directory + "invoker" + separator));
 						}
 					}
 
@@ -186,19 +192,20 @@ public class Script {
 			int i = 1;
 			for (String frontrepo : repos) {
 
-				String frontrepo_url = url + frontrepo;
+				String frontrepo_url = url + svn_url_path + frontrepo;
 
 				out.println("7." + i + " Lehúzzuk a " + frontrepo + "-t ");
 
 				String svncheckout = "svn checkout " + frontrepo_url + " -q  --username " + admin_user + " --password "
 						+ admin_pwd + " " + "--quiet --non-interactive --depth empty";
 				out.println(svncheckout);
-				out.println(cmd(svncheckout,workspace_front ));
-				out.println(svncheckout);
-				
-				/*File front_repo_file = new File(workspace_front+frontrepo);
-				front_repo_file.mkdirs();*/
-				
+				out.println(cmd(svncheckout, workspace_front));
+
+				/*
+				 * File front_repo_file = new File(workspace_front+frontrepo);
+				 * front_repo_file.mkdirs();
+				 */
+
 				for (String change : changes) {
 					if (change.equals(""))
 						break;
@@ -210,7 +217,7 @@ public class Script {
 						new_file = new File(workspace_front + frontrepo + separator + file);
 						if (new_file.exists()) {
 							new_file.delete();
-							cmd("svn delete " + file,workspace_front + frontrepo);
+							cmd("svn delete " + file, workspace_front + frontrepo);
 						}
 					}
 				}
@@ -223,15 +230,18 @@ public class Script {
 				FileUtils.copyDirectory(gold, front);
 
 				out.println("7." + i++ + ".2 Addoljuk és Commitoljuk a változtatásokat a megfelelő front repóba");
-				String svn_add = " svn add --force * --auto-props --parents --depth infinity -q";
-				out.println(cmd(svn_add,workspace_front + frontrepo));
+				String svn_add = "svn add --force * --auto-props --parents --depth infinity -q";
+				String svn_add2 = "svn --force add .";
+				out.println(svn_add + " hol:" + workspace_front + frontrepo);
+				out.println(cmd(svn_add, workspace_front + frontrepo));
 				String svn_commit = "svn commit -m \"" + commit_message + "\" --username " + front_user + " --password "
 						+ front_user + " --quiet --non-interactive";
-				out.println(cmd(svn_commit,workspace_front + frontrepo));
+				out.println(svn_commit);
+				out.println(cmd(svn_commit, workspace_front + frontrepo));
 
 			}
 			out.println("8. Töröljük a working directoryk tartalmát");
-			FileUtils.deleteQuietly(temp.toFile());
+			// FileUtils.deleteQuietly(temp.toFile());
 
 			out.println("9. Unlockoljuk a file-okat");
 			out.println("10. Kiléptem: " + System.currentTimeMillis());
@@ -242,7 +252,7 @@ public class Script {
 		} catch (Exception e) {
 			e.printStackTrace();
 			lock.deleteOnExit();
-			out.println("upsz valami hiba történt");
+			out.println("upsz valami hiba történt: \n" + e.getMessage() + "\n" + e.getCause());
 			out.flush();
 			out.close();
 		}
@@ -280,19 +290,18 @@ public class Script {
 
 		return result;
 	}
-	
+
 	public static ArrayList<String> cmd(String command) throws IOException {
 		ArrayList<String> result = new ArrayList<String>();
 		String s;
 		try {
 			Process p = Runtime.getRuntime().exec(command);
-		    BufferedReader br = new BufferedReader(
-		        new InputStreamReader(p.getInputStream()));
-		    while ((s = br.readLine()) != null)
-		        result.add(s);
-		    p.waitFor();
-		    System.out.println ("exit: " + p.exitValue());
-		    p.destroy();
+			BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+			while ((s = br.readLine()) != null)
+				result.add(s);
+			p.waitFor();
+			System.out.println("exit: " + p.exitValue());
+			p.destroy();
 		} catch (Exception e) {
 
 		} finally {
@@ -319,56 +328,58 @@ public class Script {
 		}
 	}
 
-	private void checklock() throws IOException {
+	private void checklock() throws Exception {
 		lock = new File(working_directory + "lock" + separator + "lock.properties");
 		if (lock.exists()) {
 			Properties prop = new Properties();
 			InputStream input = new FileInputStream(lock);
 			prop.load(input);
 			String commiter_repo = prop.getProperty("repo");
+			input.close();
 			out.println("5.1 Létezik a lock file. A commitoló repó:" + commiter_repo);
+			String keresettrepo = null;
 			for (String repo : repos) {
-				System.out.println(repo);
-				if (commiter_repo.contains(repo.split(separator)[0])) {
-					;
-					repos.remove(repo);
+				out.println(repo);
+				if (commiter_repo.contains(repo.subSequence(0, repo.length() - 1))) {
+					//repos.remove(repo);
+					keresettrepo=repo;
+					out.println(repo + "-t kivettük a listából");
 				}
 			}
-			input.close();
+			repos.remove(keresettrepo);
+		} else {
+			lock.createNewFile();
+			PrintWriter pw = new PrintWriter(lock);
+			pw.println("repo=\"" + gold_repo + "\"");
+
+			pw.flush();
+			pw.close();
 		}
-		lock.createNewFile();
-		PrintWriter pw = new PrintWriter(lock);
-		pw.println("repo=\"" + gold_repo + "\"");
-
-		pw.flush();
-		pw.close();
-
+		out.println("itt mivan");
 	}
-	
+
 	public ArrayList<String> cmd(String command, String where_to) throws IOException {
 		ArrayList<String> result = new ArrayList<String>();
 		String s;
 		try {
-			File where= new File(where_to);
-			Process p = Runtime.getRuntime().exec(command,null, where);
-//			ProcessBuilder pb = new ProcessBuilder(command);
-//			if(where.exists())
-//				out.println("létezik");
-//			pb.directory(where);
-//			Process p= pb.start();
-			BufferedReader error = new BufferedReader(
-			        new InputStreamReader(p.getErrorStream()));
+			File where = new File(where_to);
+			Process p = Runtime.getRuntime().exec(command, null, where);
+			// ProcessBuilder pb = new ProcessBuilder(command);
+			// if(where.exists())
+			// out.println("létezik");
+			// pb.directory(where);
+			// Process p= pb.start();
+			BufferedReader error = new BufferedReader(new InputStreamReader(p.getErrorStream()));
 			while ((s = error.readLine()) != null)
 				out.println(s);
-		        
-		    BufferedReader br = new BufferedReader(
-		        new InputStreamReader(p.getInputStream()));
-			
-		    while ((s = br.readLine()) != null)
-		        result.add(s);
-		    p.waitFor();
-		    out.println ("exit: " + p.exitValue());
-		    p.destroy();
+
+			BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
+
+			while ((s = br.readLine()) != null)
+				result.add(s);
+			p.waitFor();
+			out.println("exit: " + p.exitValue());
+			p.destroy();
 		} catch (Exception e) {
 			out.println(e.getMessage());
 		} finally {
